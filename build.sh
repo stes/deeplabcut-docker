@@ -1,7 +1,7 @@
 #!/bin/bash
 
 DOCKER_BUILD='docker build -q'
-BASENAME=deeplabcut
+BASENAME=stffsc/deeplabcut
 
 build_tf1_base() {
 ${DOCKER_BUILD} - << "EOF"
@@ -12,7 +12,7 @@ EOF
 
 # Base images
 build_miniconda() {
-for tag in cpu-lite gpu-lite cpu gpu; do
+for tag in cpu-lite gpu-lite; do
 CONDA_ENV=DLC-$(echo $tag | tr '[:lower:]' '[:upper:]')
 >&2 echo building ${tag} from ${CONDA_ENV}
 ${DOCKER_BUILD} --build-arg CONDA_ENV=${CONDA_ENV} -t ${BASENAME}:miniconda4.8.3-${tag} - << "EOF"
