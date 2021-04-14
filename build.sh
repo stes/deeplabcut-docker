@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DOCKER_BUILD='sudo docker build -q'
+DOCKER_BUILD='docker build -q'
 BASENAME=deeplabcut
 
 build_tf1_base() {
@@ -12,18 +12,23 @@ EOF
 
 # Base images
 build_miniconda() {
-${DOCKER_BUILD} -t ${BASENAME}:miniconda4.8.3 - << "EOF"
+for tag in cpu-lite gpu-lite cpu gpu; do
+CONDA_ENV=DLC-$(echo $tag | tr '[:lower:]' '[:upper:]')
+>&2 echo building ${tag} from ${CONDA_ENV}
+${DOCKER_BUILD} --build-arg CONDA_ENV=${CONDA_ENV} -t ${BASENAME}:miniconda4.8.3-${tag} - << "EOF"
 from continuumio/miniconda3:4.8.3
-run wget https://raw.githubusercontent.com/DeepLabCut/DeepLabCut/master/conda-environments/DLC-GPU-LITE.yaml
-run conda env create -f DLC-GPU-LITE.yaml
+arg CONDA_ENV
+run wget https://raw.githubusercontent.com/DeepLabCut/DeepLabCut/master/conda-environments/${CONDA_ENV}.yaml
+run conda env create -f ${CONDA_ENV}.yaml
 run apt-get update -y && apt-get install -yy ffmpeg
 
-env CONDA_DEFAULT_ENV DLC-GPU-LITE                                                                                                           
-env CONDA_PREFIX /opt/conda/envs/DLC-GPU-LITE                                                                                                
-env PATH /opt/conda/envs/DLC-GPU-LITE/bin:${PATH}
+env CONDA_DEFAULT_ENV ${CONDA_ENV}                                                                                          
+env CONDA_PREFIX /opt/conda/envs/${CONDA_ENV}                                                                                                
+env PATH /opt/conda/envs/${CONDA_ENV}/bin:${PATH}
 env DLClight True
 run rm ~/.bashrc
 EOF
+done
 }
 
 build_tf1_core() {
@@ -64,17 +69,31 @@ EOF
 }
 
 list_images() {
-    sudo docker images | grep '^deeplabcut ' | sed -s 's/\s\s\+/\t/g' | cut -f1,2 -d$'\t' --output-delimiter ':' | grep core
+    docker images | grep '^deeplabcut ' | sed -s 's/\s\s\+/\t/g' | cut -f1,2 -d$'\t' --output-delimiter ':' | grep core
 }
 
+run_test() {
+    test_image_id="$1"
+    docker run -u $(id -u) -v $(pwd):/app --tmpfs /.local --tmpfs /.cache -w /app/test/DeepLabCut \
+     --tmpfs /usr/local/lib/python3.6/dist-packages/deeplabcut/pose_estimation_tensorflow/models/pretrained \
+     --env DLClight=True \
+     -it "${test_image_id}" python -m pytest -q tests
+}
+
+prepare_tests() {
+  if [[ ! -d test/DeepLabCut/.git ]]; then
+    (cd test && git clone git@github.com:DeepLabCut/DeepLabCut.git) || exit 1
+  else
+    (cd test/DeepLabCut && git pull origin master) || exit 1
+  fi
+}
+
+prepare_tests
 for job in miniconda tf1_core tf1_gui; do 
     echo start building $job
     image_id=$(build_${job})
     echo finished ${job} ${image_id}
     test_image_id=$(build_test_image ${image_id})
     echo testing image
-    sudo docker run -u $(id -u) -v $(pwd):/app --tmpfs /.local --tmpfs /.cache -w /app/DeepLabCut \
-     --tmpfs /usr/local/lib/python3.6/dist-packages/deeplabcut/pose_estimation_tensorflow/models/pretrained \
-     --env DLClight=True \
-     -it "${test_image_id}" python -m pytest -q tests
+    run_test ${test_image_id}
 done
