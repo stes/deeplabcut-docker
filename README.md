@@ -47,3 +47,20 @@ If you want to contribute images, please open a PR. To report bugs and open feat
 ## License
 
 Contents of this repo are licensed under the MIT License. But note that the software installed within the containers has different licenses (GPL, LGPL, Apache 2.0, among others). [DeepLabCut](https://github.com/DeepLabCut/DeepLabCut) is licensed under [LGPL v3.0](https://github.com/DeepLabCut/DeepLabCut/blob/master/LICENSE).
+
+```
+                    .--,       .--,
+                    ( (  \.---./  ) )
+                     '.__/o   o\__.'
+                       `{=  ^  =}´
+                         >  u  <
+ ____________________.""`-------`"".______________________  
+\   ___                   __         __   _____       __  /
+/  / _ \ ___  ___  ___   / /  ___ _ / /  / ___/__ __ / /_ \
+\ / // // -_)/ -_)/ _ \ / /__/ _ `// _ \/ /__ / // // __/ /
+//____/ \__/ \__// .__//____/\_,_//_.__/\___/ \_,_/ \__/  \
+\_________________________________________________________/
+                       ___)( )(___ `-.___. 
+                      (((__) (__)))      ~`
+```
+Ascii art is adapted from https://ascii.co.uk/art/mice and https://patorjk.com/software/taag/#p=display&f=Small%20Slant&t=DeepLabCut.
