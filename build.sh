@@ -1,12 +1,22 @@
 #!/bin/bash
 
-DOCKER_BUILD='docker build -q'
+DOCKER=${DOCKER:-'docker'}
+DOCKER_BUILD="$DOCKER build -q"
 BASENAME=stffsc/deeplabcut
 
 build_tf1_base() {
 ${DOCKER_BUILD} - << "EOF"
 from tensorflow/tensorflow:1.15.5-gpu-py3
 run apt-get update -y && apt-get install -yy ffmpeg
+run pip install dataclasses
+EOF
+}
+
+build_tf1_gui_base() {
+base=$(build_tf1_base)
+${DOCKER_BUILD} - << EOF
+from ${base}
+run apt-get install -yy libgtk-3-dev python3-wxgtk4.0
 EOF
 }
 
@@ -31,31 +41,50 @@ EOF
 done
 }
 
+# Stable releases with TF1.15
 build_tf1_core() {
 base=$(build_tf1_base)
 ${DOCKER_BUILD} -t ${BASENAME}:core-tf1.15.5-gpu-py3 - << EOF
 from ${base}
-run pip install deeplabcut
+run pip install deeplabcut==2.1.10.4
 env DLClight True
-run apt-get update -y && apt-get install -yy ffmpeg
 EOF
 }
 
 build_tf1_gui() {
-base=$(build_tf1_base)
+base=$(build_tf1_gui_base)
 ${DOCKER_BUILD} -t ${BASENAME}:gui-tf1.15.5-gpu-py3 - << EOF
 from ${base}
-run apt-get install -yy libgtk-3-dev python3-wxgtk4.0
-run pip install 'deeplabcut[gui]'
-run apt-get update -y && apt-get install -yy ffmpeg
+run pip install 'deeplabcut[gui]==2.1.10.4'
 EOF
 }
+
+# Release candidates
+build_tf1_core_rc() {
+base=$(build_tf1_base)
+${DOCKER_BUILD} -t ${BASENAME}:core-rc-tf1.15.5-gpu-py3 - << EOF
+from ${base}
+run pip install deeplabcut==2.2rc2
+env DLClight True
+EOF
+}
+
+build_tf1_gui_rc() {
+base=$(build_tf1_gui_base)
+${DOCKER_BUILD} -t ${BASENAME}:gui-rc-tf1.15.5-gpu-py3 - << EOF
+from ${base}
+run pip install 'deeplabcut[gui]==2.2rc2'
+EOF
+}
+
+
 
 build_tf2_core() {
 ${DOCKER_BUILD} -t ${BASENAME}:core-tf2.4.1-gpu-py3 - << "EOF"
 from tensorflow/tensorflow:2.4.1-gpu
 run pip install tf-slim
 run pip install deeplabcutcore
+run pip install dataclasses
 env DLClight True
 EOF
 }
@@ -69,12 +98,12 @@ EOF
 }
 
 list_images() {
-    docker images | grep '^deeplabcut ' | sed -s 's/\s\s\+/\t/g' | cut -f1,2 -d$'\t' --output-delimiter ':' | grep core
+    $DOCKER images | grep '^deeplabcut ' | sed -s 's/\s\s\+/\t/g' | cut -f1,2 -d$'\t' --output-delimiter ':' | grep core
 }
 
 run_test() {
     test_image_id="$1"
-    docker run -u $(id -u) -v $(pwd):/app --tmpfs /.local --tmpfs /.cache -w /app/test/DeepLabCut \
+    $DOCKER run -u $(id -u) -v $(pwd):/app --tmpfs /.local --tmpfs /.cache -w /app/test/DeepLabCut \
      --tmpfs /usr/local/lib/python3.6/dist-packages/deeplabcut/pose_estimation_tensorflow/models/pretrained \
      --env DLClight=True \
      -it "${test_image_id}" python -m pytest -q tests
@@ -89,11 +118,12 @@ prepare_tests() {
 }
 
 prepare_tests
-for job in miniconda tf1_core tf1_gui; do 
+#for job in miniconda tf1_core tf1_gui; do 
+for job in tf1_core tf1_gui tf1_core_rc tf1_gui_rc; do 
     echo start building $job
     image_id=$(build_${job})
     echo finished ${job} ${image_id}
     test_image_id=$(build_test_image ${image_id})
     echo testing image
-    run_test ${test_image_id}
+    # run_test ${test_image_id}
 done

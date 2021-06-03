@@ -8,8 +8,8 @@
 # docker image. To use, simply copy this script to your
 # local directory or path and call it "interact.sh"
 
+DOCKER=${DOCKER:-docker}
 BASEIMAGE=${1:-"stffsc/deeplabcut:core-tf1.15.5-gpu-py3"}
-docker pull ${BASEIMAGE} || exit 1
 
 GIT_USER=$(git config user.name)
 GIT_EMAIL=$(git config user.email)
@@ -17,7 +17,7 @@ USERN=$(id -un)
 USER=$(id -u)
 DOCKERNAME=${USERN}/$(echo ${BASEIMAGE} | tr '/' '-')-bash
 
-docker build -q -t ${DOCKERNAME} - << EOF
+$DOCKER build -q -t ${DOCKERNAME} - << EOF
 from ${BASEIMAGE}
 
 run apt-get install -yy curl git
@@ -41,4 +41,4 @@ run git config --global user.name ${GIT_USER}
 run git config --global user.email ${GIT_EMAIL}
 EOF
 
-docker run -v $(pwd):/app -w /app -u $(id -u):$(id -g) -it ${DOCKERNAME} bash
+$DOCKER run -v $(pwd):/app -w /app -u $(id -u):$(id -g) -it ${DOCKERNAME} bash
